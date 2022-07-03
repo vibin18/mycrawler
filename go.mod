@@ -7,6 +7,7 @@ require (
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/mattn/go-sqlite3 v1.14.14
 	github.com/mdp/qrterminal v1.0.1
+	github.com/sirupsen/logrus v1.8.1
 	go.mau.fi/whatsmeow v0.0.0-20220629192020-6e4a9fb4bbe6
 	gopkg.in/yaml.v2 v2.4.0
 )
