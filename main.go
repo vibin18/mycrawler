@@ -93,88 +93,90 @@ func main() {
 	bot, err = discordgo.New("Bot " + discordToken)
 	if err != nil {
 		log.Panicf("Error: %v", err)
-
-		f := fileData{"user.yaml"}
-		usersList := f.GetUsers()
-		whatUsers := []JIDWithName{}
-		for _, items := range usersList.Users {
-			u1 := user2JIDWithName(items)
-			whatUsers = append(whatUsers, *u1)
-		}
-
-		dbLog := waLog.Stdout("Database", "DEBUG", true)
-		// Make sure you add appropriate DB connector imports, e.g. github.com/mattn/go-sqlite3 for SQLite
-		container, err := sqlstore.New("sqlite3", "file:examplestore.db?_foreign_keys=on", dbLog)
-		if err != nil {
-			log.Panicf("Error: %v", err)
-
-		}
-		deviceStore, err := container.GetFirstDevice()
-		if err != nil {
-			log.Panicf("Error: %v", err)
-		}
-		clientLog := waLog.Stdout("Client", "DEBUG", true)
-		client := whatsmeow.NewClient(deviceStore, clientLog)
-		client.AddEventHandler(eventHandler)
-		container.GetAllDevices()
-
-		if client.Store.ID == nil {
-			// No ID stored, new login
-			qrChan, _ := client.GetQRChannel(context.Background())
-			err = client.Connect()
-			if err != nil {
-				panic(err)
-			}
-			for evt := range qrChan {
-				if evt.Event == "code" {
-					// Render the QR code here
-					qrterminal.GenerateHalfBlock(evt.Code, qrterminal.L, os.Stdout)
-					// or just manually `echo 2@... | qrencode -t ansiutf8` in a terminal
-					// Use --> https://www.webtoolkitonline.com/qrcode-generator.html
-					fmt.Println("QR code:", evt.Code)
-				} else {
-					fmt.Println("Login event:", evt.Event)
-				}
-			}
-		} else {
-			// Already logged in, just connect
-			err = client.Connect()
-			if err != nil {
-				log.Panicf("Error: %v", err)
-			}
-		}
-
-		const (
-			PresenceAvailable types.Presence = "available"
-		)
-
-		wg := sync.WaitGroup{}
-		s := 0
-		for s == 0 {
-			fmt.Printf("%v th status checking", s)
-			for _, user := range whatUsers {
-				wg.Add(1)
-				go func() {
-					err := client.SendPresence(PresenceAvailable)
-					if err != nil {
-						log.Panicf("Error: %v", err)
-					}
-					err = client.SubscribePresence(user.JID)
-					if err != nil {
-						log.Panicf("Error: %v", err)
-					}
-					wg.Done()
-				}()
-				wg.Wait()
-			}
-			time.Sleep(3 * time.Second)
-		}
-
-		// Listen to Ctrl+C (you can also do something else that prevents the program from exiting)
-		c := make(chan os.Signal)
-		signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-		<-c
-
-		client.Disconnect()
 	}
+	f := fileData{userFile}
+	usersList := f.GetUsers()
+	fmt.Println(usersList)
+	//whatUsers = []JIDWithName{}
+	for _, items := range usersList.Users {
+		u1 := user2JIDWithName(items)
+		whatUsers = append(whatUsers, *u1)
+	}
+	fmt.Println(whatUsers)
+
+	dbLog := waLog.Stdout("Database", "DEBUG", true)
+	// Make sure you add appropriate DB connector imports, e.g. github.com/mattn/go-sqlite3 for SQLite
+	container, err := sqlstore.New("sqlite3", "file:examplestore.db?_foreign_keys=on", dbLog)
+	if err != nil {
+		log.Panicf("Error: %v", err)
+
+	}
+	deviceStore, err := container.GetFirstDevice()
+	if err != nil {
+		log.Panicf("Error: %v", err)
+	}
+	clientLog := waLog.Stdout("Client", "DEBUG", true)
+	client := whatsmeow.NewClient(deviceStore, clientLog)
+	client.AddEventHandler(eventHandler)
+	container.GetAllDevices()
+
+	if client.Store.ID == nil {
+		// No ID stored, new login
+		qrChan, _ := client.GetQRChannel(context.Background())
+		err = client.Connect()
+		if err != nil {
+			log.Panicf("Error: %v", err)
+		}
+		for evt := range qrChan {
+			if evt.Event == "code" {
+				// Render the QR code here
+				qrterminal.GenerateHalfBlock(evt.Code, qrterminal.L, os.Stdout)
+				// or just manually `echo 2@... | qrencode -t ansiutf8` in a terminal
+				// Use --> https://www.webtoolkitonline.com/qrcode-generator.html
+				fmt.Println("QR code:", evt.Code)
+			} else {
+				fmt.Println("Login event:", evt.Event)
+			}
+		}
+	} else {
+		// Already logged in, just connect
+		err = client.Connect()
+		if err != nil {
+			log.Panicf("Error: %v", err)
+		}
+	}
+
+	const (
+		PresenceAvailable types.Presence = "available"
+	)
+
+	wg := sync.WaitGroup{}
+	s := 1
+	for s >= 1 {
+		fmt.Printf("%v th status checking", s)
+		for _, user := range whatUsers {
+			wg.Add(1)
+			go func() {
+				err := client.SendPresence(PresenceAvailable)
+				if err != nil {
+					log.Panicf("Error: %v", err)
+				}
+				err = client.SubscribePresence(user.JID)
+				if err != nil {
+					log.Panicf("Error: %v", err)
+				}
+				wg.Done()
+			}()
+			wg.Wait()
+		}
+		s += s + 1
+		time.Sleep(3 * time.Second)
+	}
+
+	// Listen to Ctrl+C (you can also do something else that prevents the program from exiting)
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	<-c
+
+	client.Disconnect()
 }
